@@ -1,0 +1,205 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Dorify Site — demandes publiques",
+    "version": "1.0.0",
+    "description": "API indépendante du moteur Dorify. Sans authentification. Les demandes sont enregistrées pour traitement manuel."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:18090"
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Santé du processus et présence du stockage",
+        "responses": {
+          "200": {
+            "description": "Stockage accessible"
+          }
+        }
+      }
+    },
+    "/api/requests": {
+      "post": {
+        "summary": "Enregistrer une demande de compte, de démo ou de contact",
+        "description": "Aucune création de compte ni envoi d’email. Enregistrement privé avec statut pending. Origine exactement égale à PUBLIC_URL, corps limité à 16 Kio, 10 tentatives par IP de socket sur 15 min. Pas de confiance dans X-Forwarded-For. Conservation REQUEST_RETENTION_DAYS (90 par défaut), purge horaire. Aucun endpoint public de lecture. Éviter de rejouer après timeout : la demande a pu être enregistrée.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "http://localhost:18090"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Demande enregistrée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "message"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON invalide"
+          },
+          "403": {
+            "description": "Origine absente ou incorrecte"
+          },
+          "405": {
+            "description": "Méthode non autorisée"
+          },
+          "413": {
+            "description": "Corps trop volumineux"
+          },
+          "415": {
+            "description": "Content-Type non JSON"
+          },
+          "422": {
+            "description": "Validation échouée ou honeypot rempli",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Débit dépassé",
+            "headers": {
+              "Retry-After": {
+                "description": "900 secondes",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Enregistrement non confirmé"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Request": {
+        "type": "object",
+        "required": [
+          "name",
+          "organization",
+          "email",
+          "topic",
+          "hosting",
+          "sites",
+          "consent"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "organization": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "topic": {
+            "type": "string",
+            "enum": [
+              "account",
+              "demo",
+              "contact"
+            ]
+          },
+          "hosting": {
+            "type": "string",
+            "enum": [
+              "cloud",
+              "intra",
+              "undecided"
+            ]
+          },
+          "sites": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2-5",
+              "6-20",
+              "21+",
+              "undecided"
+            ]
+          },
+          "consent": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 0,
+            "description": "Honeypot, doit rester vide"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+name: dorify-site
+services:
+  site:
+    image: dorify/site:dev
+    build:
+      context: .
+      target: runtime
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${SITE_PORT:-18090}:8080'
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:18090}
+      CLOUD_LOGIN_URL: ${CLOUD_LOGIN_URL:-http://localhost:58080/login}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+      LEGAL_NAME: ${LEGAL_NAME:-}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:-}
+      LEGAL_REGISTRATION: ${LEGAL_REGISTRATION:-}
+      HOSTING_PROVIDER: ${HOSTING_PROVIDER:-}
+      REQUEST_RETENTION_DAYS: ${REQUEST_RETENTION_DAYS:-90}
+      DATA_DIR: /app/data
+    volumes:
+      - site_requests:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 15s
+volumes:
+  site_requests:
+    name: dorify-site-requests

@@ -1,0 +1,14 @@
+{
+  "name": "dori-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site vitrine indépendant de Dorify et demandes d'ouverture de compte",
+  "engines": { "node": ">=22.19.0" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "requests:export": "node tools/export-requests.js"
+  }
+}
