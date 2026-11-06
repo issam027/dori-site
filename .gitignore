@@ -4,3 +4,5 @@ data/
 artifacts/
 *.log
 *.tar
+
+.env.*.local

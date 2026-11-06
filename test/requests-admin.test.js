@@ -1,0 +1,28 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createServer, configuration } from '../server.js';
+const secret='test-service-secret-at-least-32-characters';
+test('quantities persist, internal list/detail require a service secret, search and legacy records work', async t=>{
+ const dataDir=await mkdtemp(join(tmpdir(),'dorify-admin-'));
+ const config=configuration({DATA_DIR:dataDir,SITE_REQUESTS_SECRET:secret});
+ const server=await createServer(config);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;config.publicUrl=base;
+ t.after(async()=>{await new Promise(resolve=>server.close(resolve));await rm(dataDir,{recursive:true,force:true})});
+ const post=body=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const valid={name:'Camille',organization:'Agence test',email:'test@example.test',topic:'account',hosting:'cloud',sites:'2-5',consent:true,queues:'6',peoplePerDay:'200',message:'<script>test</script>'};
+ const accepted=await post(valid);assert.equal(accepted.status,201);const {id}=await accepted.json();
+ const stored=JSON.parse(await readFile(join(dataDir,(await readdir(dataDir))[0]),'utf8'));assert.equal(stored.queues,6);assert.equal(stored.peoplePerDay,200);
+ assert.equal((await fetch(base+'/internal/requests')).status,404);
+ assert.equal((await fetch(base+'/internal/requests',{headers:{'X-Dorify-Service-Token':'wrong'}})).status,404);
+ const headers={'X-Dorify-Service-Token':secret};
+ const list=await (await fetch(base+'/internal/requests?search=agence',{headers})).json();assert.equal(list.total,1);assert.equal(list.items[0].message,undefined);
+ const detail=await (await fetch(base+'/internal/requests/'+id,{headers})).json();assert.equal(detail.id,id);assert.equal(detail.message,valid.message);
+ assert.equal((await fetch(base+'/internal/requests/'+('a'.repeat(36)),{headers})).status,404);
+ assert.equal((await fetch(base+'/internal/requests?page=0',{headers})).status,400);
+ for(const queues of ['-1','0','1.5','1000001','x'])assert.equal((await post({...valid,queues})).status,422);
+ const optional=await post({...valid,queues:'',peoplePerDay:'undecided'});assert.equal(optional.status,201);
+ const html=await (await fetch(base+'/demande-compte')).text();assert.match(html,/Nombre total de files/);assert.match(html,/2 sites et 6 files/);assert.match(html,/admin\/site-requests/);
+});

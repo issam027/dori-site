@@ -8,6 +8,11 @@ services:
     ports:
       - '127.0.0.1:8081:8080'
     environment:
+      SITE_REQUESTS_SECRET: ${SITE_REQUESTS_SECRET:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-disabled}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@dorify.fr}
+      EMAIL_SALES_TO: ${EMAIL_SALES_TO:-ijoober@gmail.com}
       NODE_ENV: production
       PORT: 8080
       PUBLIC_URL: https://www.dorify.fr
@@ -40,3 +45,8 @@ volumes:
   site_requests:
     external: true
     name: dorify-site-requests
+
+networks:
+  default:
+    external: true
+    name: dorify-cloud-network

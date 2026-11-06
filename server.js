@@ -1,8 +1,10 @@
 import http from 'node:http';
+import { emailConfiguration } from './mail/provider.js';
+import { createRequestNotifier } from './mail/outbox.js';
 import { readFile, mkdir, appendFile, readdir, unlink, stat } from 'node:fs/promises';
 import { resolve, join, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { renderPage, pages, escapeHtml } from './site.js';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -20,7 +22,7 @@ export function configuration(env = process.env) {
   const legalEmail = env.LEGAL_EMAIL || email;
   if (legalEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(legalEmail)) throw new Error('Invalid LEGAL_EMAIL');
   if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) throw new Error('Invalid CONTACT_EMAIL');
-  return { publicUrl: publicUrl.origin, cloudLogin: cloudLogin.href, contactEmail: email, legalEmail, legalDemo: env.LEGAL_DEMO === 'true',
+  return { mail: emailConfiguration(env), requestsSecret: env.SITE_REQUESTS_SECRET || '', publicUrl: publicUrl.origin, cloudLogin: cloudLogin.href, contactEmail: email, legalEmail, legalDemo: env.LEGAL_DEMO === 'true',
     legalName: env.LEGAL_NAME || '', legalAddress: env.LEGAL_ADDRESS || '', legalRegistration: env.LEGAL_REGISTRATION || '', hostingProvider: env.HOSTING_PROVIDER || '', retention,
     dataDir: resolve(env.DATA_DIR || join(root, 'data')) };
 }
@@ -39,21 +41,31 @@ export function validateRequest(body) {
   if (!allowedHosting.includes(body.hosting)) errors.hosting = 'Choisissez une préférence d’hébergement.'; else value.hosting = body.hosting;
   if (!['1', '2-5', '6-20', '21+', 'undecided'].includes(body.sites)) errors.sites = 'Choisissez le nombre de sites.'; else value.sites = body.sites;
   if (body.consent !== true) errors.consent = 'Votre accord est nécessaire pour traiter cette demande.';
+  for (const key of ['queues', 'peoplePerDay']) {
+    const raw = body[key];
+    if (raw === undefined || raw === '' || raw === 'undecided') value[key] = null;
+    else if (typeof raw === 'string' && /^[1-9]\d{0,6}$/.test(raw) && Number(raw) <= 1000000) value[key] = Number(raw);
+    else errors[key] = 'Indiquez un entier entre 1 et 1 000 000 ou laissez à définir.';
+  }
   value.consent = true;
   return { value, errors };
 }
 
-export async function createServer(config = configuration()) {
+export async function createServer(config = configuration(), mailOptions) {
   await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   // One immutable file per accepted request: safe across processes; no list endpoint exposes it.
   async function purgeExpired() {
     const cutoff = Date.now() - config.retention * 86400000;
     for (const file of await readdir(config.dataDir)) {
       if (!/^\d{13}-[a-f0-9-]{36}\.json$/.test(file)) continue;
-      if (Number(file.slice(0, 13)) < cutoff) await unlink(join(config.dataDir, file)).catch(e => { if (e.code !== 'ENOENT') throw e; });
+      if (Number(file.slice(0, 13)) < cutoff) {
+        await unlink(join(config.dataDir, file)).catch(e => { if (e.code !== 'ENOENT') throw e; });
+        await unlink(join(config.dataDir, file + '.mail.json')).catch(e => { if (e.code !== 'ENOENT') throw e; });
+      }
     }
   }
   await purgeExpired();
+  const notifier = createRequestNotifier(config, mailOptions);
   const timer = setInterval(() => purgeExpired().catch(() => console.error('Request retention failed')), 3600000).unref();
   const attempts = new Map();
   const server = http.createServer(async (req, res) => {
@@ -66,6 +78,28 @@ export async function createServer(config = configuration()) {
     try {
       const url = new URL(req.url, config.publicUrl);
       if (url.pathname === '/healthz' && ['GET', 'HEAD'].includes(req.method)) { await stat(config.dataDir); return send(200, { status: 'ok' }); }
+      if (url.pathname === '/internal/requests' || url.pathname.startsWith('/internal/requests/')) {
+        const supplied = Buffer.from(String(req.headers['x-dorify-service-token'] || ''));
+        const expected = Buffer.from(config.requestsSecret || '');
+        if (expected.length < 32 || supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return send(404, { message: 'Introuvable.' });
+        if (req.method !== 'GET') return send(405, { message: 'Méthode non autorisée.' });
+        const id = url.pathname.slice('/internal/requests'.length).replace(/^\//, '');
+        if (id && !/^[a-f0-9-]{36}$/i.test(id)) return send(404, { message: 'Introuvable.' });
+        const search = (url.searchParams.get('search') || '').slice(0, 160).toLocaleLowerCase('fr');
+        const pageText = url.searchParams.get('page') || '1';
+        if (!/^[1-9]\d{0,5}$/.test(pageText)) return send(400, { message: 'Page invalide.' });
+        const page = Number(pageText), pageSize = 25, cutoff = Date.now() - config.retention * 86400000;
+        const records = [];
+        for (const name of (await readdir(config.dataDir)).sort().reverse()) {
+          if (!/^\d{13}-[a-f0-9-]{36}\.json$/.test(name) || Number(name.slice(0,13)) < cutoff || (id && !name.endsWith('-' + id + '.json'))) continue;
+          let record;
+          try { record = JSON.parse(await readFile(join(config.dataDir, name), 'utf8')); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+          if (id) return send(200, record);
+          if (!search || ['id','organization','name','email','topic'].some(key => String(record[key] || '').toLocaleLowerCase('fr').includes(search))) records.push(record);
+        }
+        if (id) return send(404, { message: 'Introuvable.' });
+        return send(200, { items: records.slice((page - 1) * pageSize, page * pageSize).map(({message, phone, consent, ...summary}) => summary), total: records.length, page, pageSize });
+      }
       if (url.pathname === '/api/requests') {
         if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(405, { message: 'Méthode non autorisée.' }); }
         if (req.headers.origin !== config.publicUrl) return send(403, { message: 'Origine non autorisée.' });
@@ -84,7 +118,8 @@ export async function createServer(config = configuration()) {
         const { value, errors } = validateRequest(body);
         if (Object.keys(errors).length) return send(422, { message: 'Vérifiez les champs indiqués.', errors });
         const id = randomUUID(); const createdAt = new Date(now).toISOString();
-        await appendFile(join(config.dataDir, `${now}-${id}.json`), JSON.stringify({ id, createdAt, status: 'pending', privacyVersion: '2026-11-04', ...value }) + '\n', { flag: 'wx', mode: 0o600 });
+        await appendFile(join(config.dataDir, `${now}-${id}.json`), JSON.stringify({ id, createdAt, status: 'pending', privacyVersion: '2026-11-04', ...(notifier.enabled ? { emailNotificationVersion: 1 } : {}), ...value }) + '\n', { flag: 'wx', mode: 0o600 });
+        notifier.notify();
         return send(201, { id, message: 'Votre demande a bien été enregistrée. Notre équipe pourra vous recontacter à l’adresse indiquée.' });
       }
       if (!['GET', 'HEAD'].includes(req.method)) { res.setHeader('Allow', 'GET, HEAD'); return send(405, { message: 'Méthode non autorisée.' }); }
@@ -103,7 +138,7 @@ export async function createServer(config = configuration()) {
       if (!res.headersSent) send(500, { message: 'La demande n’a pas pu être enregistrée. Réessayez plus tard.' }); else res.end();
     }
   });
-  server.on('close', () => clearInterval(timer));
+  server.on('close', () => { clearInterval(timer); notifier.close(); });
   server.requestTimeout = 15000; server.headersTimeout = 10000;
   return server;
 }

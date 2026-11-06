@@ -4,6 +4,7 @@ param(
     [string]$IdentityFile = "$PSScriptRoot\..\autres\dorify_key",
     [string]$RemoteDirectory = '/home/ubuntu/dorify',
     [string]$Version = (Get-Date -Format 'yyyyMMdd-HHmmss'),
+    [string]$EnvFile = "$PSScriptRoot\.env.oracle.local",
     [switch]$Migrate,
     [switch]$Seed,
     [switch]$ResetDatabase,
@@ -48,11 +49,17 @@ try {
     $sshArgs = @('-i',$IdentityFile,'-o','BatchMode=yes','-o','ConnectTimeout=15')
     # Check required remote configuration before transferring or changing services.
     Invoke-Native ssh ($sshArgs + @($Server,"test -f '$RemoteDirectory/.env' && docker compose version >/dev/null"))
+    if ($PSBoundParameters.ContainsKey('EnvFile') -and -not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) { throw 'Site environment file not found' }
     $archive = Join-Path $temporary 'images.tar'
     Invoke-Native docker (@('save','-o',$archive) + $images)
     $release = "$RemoteDirectory/releases/$component-$Version"
-    Invoke-Native ssh ($sshArgs + @($Server,"mkdir -p '$RemoteDirectory/releases' && mkdir '$release'"))
+    Invoke-Native ssh ($sshArgs + @($Server,"umask 077; mkdir -p '$RemoteDirectory/releases' && mkdir '$release'"))
     Invoke-Native scp (@('-i',$IdentityFile,'-o','BatchMode=yes',$archive,(Join-Path $PSScriptRoot $compose),"${Server}:$release/"))
+    if (Test-Path -LiteralPath $EnvFile -PathType Leaf) {
+        $upload = Join-Path $temporary 'environment.upload'
+        [IO.File]::WriteAllText($upload,([IO.File]::ReadAllText((Resolve-Path $EnvFile)).Replace("`r`n","`n")),(New-Object Text.UTF8Encoding($false)))
+        Invoke-Native scp @('-i',$IdentityFile,'-o','BatchMode=yes',$upload,"${Server}:$release/environment.upload")
+    }
     if ($DeployProxy) {
         Invoke-Native scp @('-i',$IdentityFile,'-o','BatchMode=yes',(Join-Path $PSScriptRoot 'Caddyfile'),(Join-Path $PSScriptRoot 'compose.proxy.oracle.yaml'),"${Server}:$release/")
     }
@@ -67,6 +74,28 @@ exec 9>.oracle-deploy.lock
 flock -n 9 || { echo 'Another delivery is running'; exit 1; }
 docker load -i "$release/images.tar"
 cp .env "$release/environment.before"
+if [ -f "$release/environment.upload" ]; then
+python3 - "$release" <<'PYTHON'
+import os,pathlib,re,sys
+release=pathlib.Path(sys.argv[1])
+target=pathlib.Path('.env')
+text=target.read_text(encoding='utf-8-sig')
+allowed={'EMAIL_PROVIDER','RESEND_API_KEY','EMAIL_FROM','EMAIL_SALES_TO','SITE_REQUESTS_SECRET'}
+for line in (release/'environment.upload').read_text(encoding='utf-8-sig').splitlines():
+    match=re.match(r'^([A-Z_]+)=(.*)$',line)
+    if not match or match[1] not in allowed or not match[2].strip(): continue
+    key,value=match.groups()
+    current=re.search(r'(?m)^'+re.escape(key)+r'=(.*)$',text)
+    if current and current[1].strip() not in ('',"''",'""'): continue
+    text=re.sub(r'(?m)^'+re.escape(key)+r'=.*$','',text)
+    text+='\n'+key+'='+value+'\n'
+prepared=release/'environment.prepared'
+prepared.write_text(text,encoding='utf-8')
+prepared.chmod(0o600)
+os.replace(prepared,target)
+(release/'environment.upload').unlink()
+PYTHON
+fi
 if [ -f '__COMPOSE__' ]; then cp '__COMPOSE__' "$release/compose.before.yaml"; fi
 cp "$release/__COMPOSE__" '__COMPOSE__'
 export __VARIABLE__='__IMAGE__'
