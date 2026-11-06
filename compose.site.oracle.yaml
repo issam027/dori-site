@@ -1,0 +1,42 @@
+name: dorify-site
+
+services:
+  site:
+    image: ${SITE_IMAGE:?Set SITE_IMAGE to a versioned image}
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8081:8080'
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      PUBLIC_URL: https://www.dorify.fr
+      CLOUD_LOGIN_URL: https://app.dorify.fr/login
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-contact@dorify.fr}
+      LEGAL_EMAIL: ${LEGAL_EMAIL:-legal@dorify.fr}
+      LEGAL_DEMO: ${LEGAL_DEMO:-true}
+      LEGAL_NAME: ${LEGAL_NAME:-Dorify - demonstration}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:-Adresse du responsable Dorify a renseigner}
+      LEGAL_REGISTRATION: ${LEGAL_REGISTRATION:-Immatriculation a renseigner}
+      HOSTING_PROVIDER: Oracle Cloud Infrastructure
+      REQUEST_RETENTION_DAYS: ${REQUEST_RETENTION_DAYS:-90}
+      DATA_DIR: /app/data
+    volumes:
+      - site_requests:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+volumes:
+  site_requests:
+    external: true
+    name: dorify-site-requests

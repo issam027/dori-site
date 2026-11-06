@@ -17,8 +17,10 @@ export function configuration(env = process.env) {
   const retention = Number(env.REQUEST_RETENTION_DAYS || 90);
   if (!Number.isInteger(retention) || retention < 1 || retention > 365) throw new Error('REQUEST_RETENTION_DAYS must be 1–365');
   const email = env.CONTACT_EMAIL || '';
+  const legalEmail = env.LEGAL_EMAIL || email;
+  if (legalEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(legalEmail)) throw new Error('Invalid LEGAL_EMAIL');
   if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) throw new Error('Invalid CONTACT_EMAIL');
-  return { publicUrl: publicUrl.origin, cloudLogin: cloudLogin.href, contactEmail: email,
+  return { publicUrl: publicUrl.origin, cloudLogin: cloudLogin.href, contactEmail: email, legalEmail, legalDemo: env.LEGAL_DEMO === 'true',
     legalName: env.LEGAL_NAME || '', legalAddress: env.LEGAL_ADDRESS || '', legalRegistration: env.LEGAL_REGISTRATION || '', hostingProvider: env.HOSTING_PROVIDER || '', retention,
     dataDir: resolve(env.DATA_DIR || join(root, 'data')) };
 }

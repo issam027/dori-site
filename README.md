@@ -1,7 +1,7 @@
 # Dorify — Site vitrine
 
 Projet indépendant : `D:\work\workspaces\dori\dori-site`.
-Aucune modification ni dépendance d’exécution aux projets dori-api, dori-web et dori-agent.
+Aucune dépendance d’exécution aux projets dori-api, dori-web et dori-agent. Les informations légales de la vitrine reprennent la configuration de développement de dori-web et distinguent les formulaires des données métier.
 
 ## Docker local
 
@@ -40,13 +40,15 @@ docker compose -f compose.site.yaml up -d --force-recreate
 | SITE_PORT | Port local, 18090 par défaut. |
 | PUBLIC_URL | Origine exacte du site (http://localhost:18090 par défaut), utilisée pour valider l’origine des formulaires. |
 | CLOUD_LOGIN_URL | Lien de connexion de l’espace client. |
+| LEGAL_EMAIL | Contact l?gal, distinct du contact commercial. |
+| LEGAL_DEMO | Signale les coordonn?es de d?veloppement reprises de dori-web. |
 | CONTACT_EMAIL | Contact affiché si renseigné. Ne configure pas un service d’envoi. |
 | LEGAL_NAME, LEGAL_ADDRESS, LEGAL_REGISTRATION | Identité réelle de l’éditeur, à compléter avant publication publique. |
 | HOSTING_PROVIDER | Informations de l’hébergeur réel. |
 | REQUEST_RETENTION_DAYS | Conservation de 1 à 365 jours, 90 par défaut. |
 | DATA_DIR | Stockage, /app/data dans Docker. |
 
-Les coordonnées de l’entreprise et la rédaction juridique finale doivent être complétées avec les informations réelles avant publication publique. Aucun faux nom, adresse ou email n’a été ajouté.
+Les coordonnées de l’entreprise et la rédaction juridique finale doivent être complétées avec les informations réelles avant publication publique. Les coordonnées actuelles proviennent du développement de dori-web (DEV-LOCAL), avec LEGAL_DEMO=true. Remplacer les coordonnées par celles de l’éditeur réel et passer LEGAL_DEMO=false avant publication publique.
 
 ## Demandes de compte, démo et contact
 

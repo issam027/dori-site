@@ -16,7 +16,7 @@ try{
   p.on('pageerror',e=>errors.push(e.message));
   for(const [route,name]of [['/','accueil'],['/solution','solution'],['/fonctionnalites','fonctionnalites'],['/hebergement','hebergement'],['/a-propos','a-propos'],['/demande-compte','demande-compte'],['/contact','contact'],['/confidentialite','confidentialite'],['/mentions-legales','mentions-legales']]){
    const response=await p.goto(base+route);assert.equal(response.status(),200,route);await p.waitForTimeout(200);
-   assert.equal(await p.locator('h1').count(),1);
+   assert.equal(await p.locator('h1').count(),1); assert.ok(!/\p{L}\?\p{L}/u.test(await p.locator('body').innerText()),'Texte mal encodé '+route);
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Overflow '+device+' '+route);
    for(const image of await p.locator('img:visible').all()){await image.scrollIntoViewIfNeeded();await image.evaluate(i=>i.loading='eager');} await p.waitForFunction(()=>[...document.images].filter(i=>i.getClientRects().length).every(i=>i.complete&&i.naturalWidth>0)); await p.evaluate(()=>scrollTo(0,0));
    await p.screenshot({path:join(out,device+'-'+name+'.png'),fullPage:true});

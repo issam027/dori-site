@@ -15,6 +15,8 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:18090}
       CLOUD_LOGIN_URL: ${CLOUD_LOGIN_URL:-http://localhost:58080/login}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+      LEGAL_EMAIL: ${LEGAL_EMAIL:-}
+      LEGAL_DEMO: ${LEGAL_DEMO:-false}
       LEGAL_NAME: ${LEGAL_NAME:-}
       LEGAL_ADDRESS: ${LEGAL_ADDRESS:-}
       LEGAL_REGISTRATION: ${LEGAL_REGISTRATION:-}
