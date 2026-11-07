@@ -6,10 +6,16 @@ import assert from 'node:assert/strict';
 import {createServer,configuration} from '../server.js';
 const require=createRequire(import.meta.url);
 const {chromium}=require(require.resolve(process.env.PLAYWRIGHT_MODULE||'playwright',{paths:[process.cwd(),resolve('../dori-web')]}));
-const base=process.env.SITE_URL||'http://localhost:18090';
 const out=resolve('artifacts/screenshots');await mkdir(out,{recursive:true});
 const browser=await chromium.launch({channel:'chrome',headless:true});
-const errors=[];let fixture,dir;
+const errors=[];let fixture,dir,baseServer,baseDir;
+let base=process.env.SITE_URL;
+if(!base){
+ baseDir=await mkdtemp(join(tmpdir(),'dorify-browser-base-'));
+ baseServer=await createServer(configuration({DATA_DIR:baseDir,CLIENT_URL:'http://localhost:58080'}));
+ await new Promise(r=>baseServer.listen(0,'127.0.0.1',r));
+ base='http://127.0.0.1:'+baseServer.address().port;
+}
 try{
  for(const [device,width,height]of [['desktop',1440,1050],['mobile',390,844]]){
   const c=await browser.newContext({viewport:{width,height},locale:'fr-FR',reducedMotion:'reduce'}),p=await c.newPage();
@@ -41,7 +47,8 @@ try{
  await p.screenshot({path:join(out,'desktop-formulaire-etape-2.png'),fullPage:true});
  await p.getByRole('button',{name:'Envoyer ma demande'}).click();await p.locator('#request-success').waitFor({state:'visible'});
  const files=await readdir(dir);assert.equal(files.length,1);const data=JSON.parse(await readFile(join(dir,files[0]),'utf8'));assert.equal(data.topic,'demo');assert.equal(data.hosting,'intra');assert.equal(data.status,'pending');
+ assert.match(data.reference,/^DEMO-\d{10}$/);assert.equal(await p.locator('#request-reference').innerText(),data.reference);assert.equal(await p.locator('#request-id').innerText(),data.id);
  await p.screenshot({path:join(out,'desktop-demande-confirmee.png'),fullPage:true});
  assert.deepEqual(errors,[]);console.log('9 pages desktop/mobile, navigation, galerie, zoom, FAQ, hébergement et demande persistée : OK. Captures : '+out);
-}finally{await browser.close();if(fixture)await new Promise(r=>fixture.close(r));if(dir)await rm(dir,{recursive:true,force:true})}
+}finally{await browser.close();if(fixture)await new Promise(r=>fixture.close(r));if(baseServer)await new Promise(r=>baseServer.close(r));if(dir)await rm(dir,{recursive:true,force:true});if(baseDir)await rm(baseDir,{recursive:true,force:true});}
 

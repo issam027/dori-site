@@ -33,8 +33,9 @@ test('all public pages render as HTML with navigation and security headers',asyn
 test('accepted request is durably persisted with a reference and limited fields',async t=>{
  const {post,dataDir}=await fixture(t);const r=await post({...valid,name:'  Camille Test  ',status:'approved',unknown:'ignored'});
  assert.equal(r.status,201);const body=await r.json();assert.match(body.id,/^[a-f0-9-]{36}$/);
+ assert.match(body.reference,/^(?:DEMO|CPT|CTC)-\d{10}$/);
  const files=await readdir(dataDir);assert.equal(files.length,1);const saved=JSON.parse(await readFile(join(dataDir,files[0]),'utf8'));
- assert.equal(saved.id,body.id);assert.equal(saved.name,'Camille Test');assert.equal(saved.status,'pending');assert.equal(saved.unknown,undefined);assert.equal(saved.consent,true);
+ assert.equal(saved.id,body.id);assert.equal(saved.reference,body.reference);assert.equal(saved.name,'Camille Test');assert.equal(saved.status,'pending');assert.equal(saved.unknown,undefined);assert.equal(saved.consent,true);
 });
 test('invalid requests create no records and return field errors',async t=>{
  const {post,dataDir}=await fixture(t);

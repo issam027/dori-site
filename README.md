@@ -18,10 +18,37 @@ Le port est publié sur 127.0.0.1 pour la démonstration. Pour publier sur Inter
 
 ## Pages et présentation
 
-Accueil, solution, fonctionnalités, Cloud & INTRA, à propos, contact, demande de compte/démo, confidentialité, mentions légales et 404.
-Navigation mobile, galerie à onglets au clavier, agrandissement des captures, choix d’hébergement interactif, FAQ, formulaire en deux étapes et confirmation avec référence.
+Le site vitrine intègre désormais 24 pages statiques rendues côté serveur, couvrant l’ensemble des recommandations de l’audit SEO, SaaS et conversion :
 
-HTML rendu côté serveur sur chaque URL, CSS et JavaScript natifs. SEO : titres, descriptions, canonical, Open Graph, sitemap et robots.txt.
+- **Accueil (`/`)** : H1 axé sur les mots-clés métier (« Logiciel de gestion des files d’attente, des rendez-vous et de l’accueil visiteurs »), signature « Moins d’attente. Plus d’attention. », parcours en 5 étapes, présentation des modules, aperçu des secteurs, captures réelles avec zoom, sélecteur Cloud/INTRA et FAQ enrichie.
+- **La solution (`/solution`)** : Parcours complet structuré autour des 3 profils (Usager, Opérateur guichet, Décideur/DSI) et schéma fonctionnel en 6 étapes.
+- **Sommaire des fonctionnalités (`/fonctionnalites`)** : Catalogue complet et matrice de transparence technique (inclus nativement / selon hébergement / matériel standard / prestataire externe).
+- **6 pages dédiées aux fonctionnalités** :
+  - `/fonctionnalites/gestion-files-attente` : files, capacités, règles de priorité spontanés vs RDV.
+  - `/fonctionnalites/prise-rendez-vous` : agenda de créneaux, pointage à l’arrivée, replanification.
+  - `/fonctionnalites/poste-guichet-operateur` : cockpit opérateur web, appel suivant en 1 clic, qualification.
+  - `/fonctionnalites/bornes-tickets-affichage` : borne tactile, tickets papier/QR et écran d’appel en salle.
+  - `/fonctionnalites/suivi-mobile-file-attente` : suivi en direct sur smartphone sans application (QR code).
+  - `/fonctionnalites/statistiques-supervision` : salle de contrôle (Control Room), rapports et exports CSV.
+- **Grille tarifaire (`/tarifs`)** : Formules Starter (1 site), Pro (multi-guichets & RDV) et Réseau multi-sites, sans coût caché.
+- **Démonstration (`/demo`) & Demande (`/demande-compte`)** : Présentation du déroulé de la démo en 30 min et formulaire en deux étapes avec validation temps réel.
+- **Foire aux questions (`/faq`)** : Questions regroupées par thématiques avec balisage Schema.org `FAQPage`.
+- **Hébergement & Déploiement** :
+  - `/hebergement` : Comparatif approfondi Cloud vs INTRA (installation locale sur site / on-premise), résilience hors-ligne.
+  - `/cloud` : Présentation du SaaS souverain hébergé en Union Européenne (France, ISO 27001).
+  - `/installation-locale` : Présentation de Dorify INTRA (on-premise sur réseau local).
+  - `/securite-rgpd` : Page de réassurance DSI/DPO (chiffrement TLS 1.3 / AES-256, audit 366 jours, zéro traceur).
+- **Pages sectorielles** :
+  - `/secteurs/mairies-collectivites` : Mairies, CCAS et collectivités (état civil, passeports, CNI).
+  - `/secteurs/administrations-services-publics` : Préfectures, universités et organismes sociaux.
+  - `/secteurs/reseaux-agences` : Agences bancaires, mutuelles et accueils multisites.
+- **Pages corporate & légales** :
+  - `/a-propos` : Identité de l’éditeur Dorify SAS, mission, histoire et principes directeurs.
+  - `/contact` : Formulaire de contact général avec motifs qualifiés.
+  - `/mentions-legales` : Informations juridiques complètes, éditeur Dorify SAS, capital, RCS, hébergeur.
+  - `/confidentialite` : Politique de confidentialité conforme RGPD (bases légales, rétention, droits CNIL).
+
+HTML rendu côté serveur sur chaque URL, CSS et JavaScript natifs. SEO : balises Title et meta descriptions uniques et optimisées, canonical absolu, Open Graph, Twitter Cards, données structurées Schema.org (`Organization`, `SoftwareApplication`, `BreadcrumbList`, `FAQPage`), sitemap.xml exhaustif et robots.txt sécurisé (`Disallow: /api/` et `/internal/`).
 Ni CDN, ni police distante, ni traqueur.
 Couleurs reprises de Dorify : bleu nuit #102a43, turquoise #087477, menthe #c5f4ef.
 Le cockpit illustré sur l’accueil utilise des données fictives signalées. Les captures réelles de supervision, rapports et borne proviennent de la démonstration, sans l’annonce de test. Pas de faux client, témoignage ou chiffre commercial.

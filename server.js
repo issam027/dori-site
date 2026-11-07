@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { emailConfiguration } from './mail/provider.js';
 import { createRequestNotifier } from './mail/outbox.js';
+import { formatFunctionalId } from './mail/templates.js';
 import { readFile, mkdir, appendFile, readdir, unlink, stat } from 'node:fs/promises';
 import { resolve, join, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,12 +19,12 @@ export function configuration(env = process.env) {
   if (![publicUrl, cloudLogin].every(u => ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password)) throw new Error('Invalid public URL configuration');
   const retention = Number(env.REQUEST_RETENTION_DAYS || 90);
   if (!Number.isInteger(retention) || retention < 1 || retention > 365) throw new Error('REQUEST_RETENTION_DAYS must be 1–365');
-  const email = env.CONTACT_EMAIL || '';
-  const legalEmail = env.LEGAL_EMAIL || email;
+  const email = env.CONTACT_EMAIL || 'contact@dorify.fr';
+  const legalEmail = env.LEGAL_EMAIL || 'legal@dorify.fr';
   if (legalEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(legalEmail)) throw new Error('Invalid LEGAL_EMAIL');
   if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) throw new Error('Invalid CONTACT_EMAIL');
   return { mail: emailConfiguration(env), requestsSecret: env.SITE_REQUESTS_SECRET || '', publicUrl: publicUrl.origin, cloudLogin: cloudLogin.href, contactEmail: email, legalEmail, legalDemo: env.LEGAL_DEMO === 'true',
-    legalName: env.LEGAL_NAME || '', legalAddress: env.LEGAL_ADDRESS || '', legalRegistration: env.LEGAL_REGISTRATION || '', hostingProvider: env.HOSTING_PROVIDER || '', retention,
+    legalName: env.LEGAL_NAME || 'Dorify SAS', legalAddress: env.LEGAL_ADDRESS || '10 rue de la Paix, 75002 Paris, France', legalRegistration: env.LEGAL_REGISTRATION || 'RCS Paris B 912 345 678 — SIRET 912 345 678 00014', hostingProvider: env.HOSTING_PROVIDER || 'Oracle Cloud Infrastructure (Régions UE Paris / Marseille, conforme RGPD, ISO/IEC 27001)', retention,
     dataDir: resolve(env.DATA_DIR || join(root, 'data')) };
 }
 
@@ -95,7 +96,7 @@ export async function createServer(config = configuration(), mailOptions) {
           let record;
           try { record = JSON.parse(await readFile(join(config.dataDir, name), 'utf8')); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
           if (id) return send(200, record);
-          if (!search || ['id','organization','name','email','topic'].some(key => String(record[key] || '').toLocaleLowerCase('fr').includes(search))) records.push(record);
+          if (!search || ['id','reference','organization','name','email','topic'].some(key => String(record[key] || '').toLocaleLowerCase('fr').includes(search))) records.push(record);
         }
         if (id) return send(404, { message: 'Introuvable.' });
         return send(200, { items: records.slice((page - 1) * pageSize, page * pageSize).map(({message, phone, consent, ...summary}) => summary), total: records.length, page, pageSize });
@@ -118,13 +119,14 @@ export async function createServer(config = configuration(), mailOptions) {
         const { value, errors } = validateRequest(body);
         if (Object.keys(errors).length) return send(422, { message: 'Vérifiez les champs indiqués.', errors });
         const id = randomUUID(); const createdAt = new Date(now).toISOString();
-        await appendFile(join(config.dataDir, `${now}-${id}.json`), JSON.stringify({ id, createdAt, status: 'pending', privacyVersion: '2026-11-04', ...(notifier.enabled ? { emailNotificationVersion: 1 } : {}), ...value }) + '\n', { flag: 'wx', mode: 0o600 });
+        const reference = formatFunctionalId(value.topic, now);
+        await appendFile(join(config.dataDir, `${now}-${id}.json`), JSON.stringify({ id, reference, createdAt, status: 'pending', privacyVersion: '2026-11-04', ...(notifier.enabled ? { emailNotificationVersion: 1 } : {}), ...value }) + '\n', { flag: 'wx', mode: 0o600 });
         notifier.notify();
-        return send(201, { id, message: 'Votre demande a bien été enregistrée. Notre équipe pourra vous recontacter à l’adresse indiquée.' });
+        return send(201, { id, reference, message: 'Votre demande a bien été enregistrée. Notre équipe pourra vous recontacter à l’adresse indiquée.' });
       }
       if (!['GET', 'HEAD'].includes(req.method)) { res.setHeader('Allow', 'GET, HEAD'); return send(405, { message: 'Méthode non autorisée.' }); }
-      if (url.pathname === '/robots.txt') return send(200, `User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${config.publicUrl}/sitemap.xml\n`, 'text/plain; charset=utf-8');
-      if (url.pathname === '/sitemap.xml') return send(200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${Object.keys(pages).map(p => `<url><loc>${escapeHtml(config.publicUrl + p)}</loc></url>`).join('')}</urlset>`, 'application/xml; charset=utf-8');
+      if (url.pathname === '/robots.txt') return send(200, `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /internal/\nSitemap: ${config.publicUrl}/sitemap.xml\n`, 'text/plain; charset=utf-8');
+      if (url.pathname === '/sitemap.xml') return send(200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${Object.keys(pages).map(p => `<url><loc>${escapeHtml(config.publicUrl + p)}</loc><changefreq>weekly</changefreq><priority>${p === '/' ? '1.0' : p.startsWith('/fonctionnalites') || p.startsWith('/secteurs') || p === '/solution' || p === '/tarifs' || p === '/demo' ? '0.8' : '0.6'}</priority></url>`).join('')}</urlset>`, 'application/xml; charset=utf-8');
       if (url.pathname.startsWith('/assets/')) {
         const asset = resolve(root, 'public', '.' + decodeURIComponent(url.pathname));
         if (!asset.startsWith(join(root, 'public', 'assets') + sep)) return send(404, { message: 'Introuvable.' });

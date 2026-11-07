@@ -11,10 +11,10 @@ import {createServer,configuration} from '../server.js';
 const now=Date.now();
 const record={id:'11111111-1111-4111-8111-111111111111',createdAt:new Date(now).toISOString(),emailNotificationVersion:1,name:'Camille <img src=x>',organization:'Agence & accueil',email:'test@example.test',phone:'+33 1 00 00 00 00',topic:'account',hosting:'cloud',sites:'2-5',queues:6,peoplePerDay:200,message:'<script>alert(1)</script>',consent:true};
 const mail={provider:'resend',apiKey:'test-only-secret',from:'noreply@dorify.fr',salesTo:'ijoober@gmail.com'};
-async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'dorify-mail-'));t.after(()=>rm(dir,{recursive:true,force:true}));return dir}
+async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'dorify-mail-'));t.after(()=>rm(dir,{recursive:true,force:true,maxRetries:5,retryDelay:50}));return dir}
 test('professional templates include reference, quantities, signature, plain text and escaped input',()=>{
  const messages=requestMessages(record,mail);assert.equal(messages.length,2);
- for(const m of messages){assert.match(m.html,/DORIFY/);assert.ok(m.text.includes(record.id));assert.ok(m.text.includes('200'));assert.ok(m.text.includes('L’équipe Dorify'));assert.ok(!m.html.includes('<script>'));assert.ok(m.html.includes('&lt;script&gt;'));assert.equal(m.from,'Dorify <noreply@dorify.fr>')}
+ for(const m of messages){assert.match(m.html,/DORIFY/);assert.ok(m.text.includes(record.id));assert.match(m.text,/(?:DEMO|CPT|CTC)-\d{10}/);assert.match(m.html,/(?:DEMO|CPT|CTC)-\d{10}/);assert.ok(m.text.includes('200'));assert.ok(m.text.includes('L’équipe Dorify'));assert.ok(!m.html.includes('<script>'));assert.ok(m.html.includes('&lt;script&gt;'));assert.equal(m.from,'Dorify <noreply@dorify.fr>')}
  assert.equal(messages[0].to,'ijoober@gmail.com');assert.equal(messages[0].replyTo,record.email);assert.match(messages[1].text,/Un commercial Dorify prendra contact/);
  assert.equal(requestMessages({...record,email:''},mail).length,1);
 });

@@ -59,7 +59,7 @@ if(form){
    const response=await fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(15000)});
    const result=await response.json();
    if(!response.ok){if(result.errors){for(const [name,text]of Object.entries(result.errors))error(name,text);const first=Object.keys(result.errors)[0];if(['topic','hosting','sites','queues','peoplePerDay'].includes(first))step(1);else if(form.elements[first]?.focus)form.elements[first].focus();}throw Error(result.message||'L’envoi a échoué. Réessayez.');}
-   document.querySelector('#request-id').textContent=result.id;form.hidden=true;const success=document.querySelector('#request-success');success.hidden=false;success.focus();form.reset();
+   const ref=result.reference||result.id;const refEl=document.querySelector('#request-reference');if(refEl)refEl.textContent=ref;const idEl=document.querySelector('#request-id');if(idEl)idEl.textContent=result.id;form.hidden=true;const success=document.querySelector('#request-success');success.hidden=false;success.focus();form.reset();
   }catch(error){feedback.textContent=error.name==='TimeoutError'?'La réponse tarde à arriver. Votre demande a peut-être été reçue ; attendez un moment avant de réessayer.':error instanceof TypeError?'La connexion n’a pas abouti. Vérifiez votre réseau et réessayez.':error.message;feedback.focus();}
   finally{pending=false;submit.disabled=false;form.querySelector('.back-button').disabled=false;submitLabel.textContent='Envoyer ma demande';form.removeAttribute('aria-busy');}
  });
