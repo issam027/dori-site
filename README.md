@@ -1,13 +1,17 @@
 # Dorify — Site vitrine
 
+Les formulaires exigent un CAPTCHA visuel PNG à six caractères. La réponse reste en mémoire serveur, expire après cinq minutes et chaque tentative consomme le code. Un code manquant, incorrect, expiré ou réutilisé bloque l’enregistrement et la notification email. Le renouvellement est limité à 60 codes par adresse de socket sur 15 minutes ; les envois restent limités à 10 tentatives. Le redémarrage du serveur invalide les codes en cours. Aucun service tiers ni clé externe n’est nécessaire.
+
+Les captures de démonstration peuvent être reprises avec `node tools/capture-product.js` (Playwright de dori-web). `APP_URL`, `CAPTURE_USERNAME` et `CAPTURE_PASSWORD` permettent de choisir la démonstration. `PREPARE_ACTIVITY=true` ouvre jusqu’à trois guichets et appelle des tickets : utiliser uniquement sur une base de démonstration. Les rapports sont capturés sur une période historique renseignée ; les données sont synthétiques et signalées dans la galerie.
+
 Projet indépendant : `D:\work\workspaces\dori\dori-site`.
 Aucune dépendance d’exécution aux projets dori-api, dori-web et dori-agent. Les informations légales de la vitrine reprennent la configuration de développement de dori-web et distinguent les formulaires des données métier.
 
 ## Docker local
 
 ```powershell
-docker compose -f compose.site.yaml up -d --build
-docker compose -f compose.site.yaml ps
+docker compose -f compose.site.cloud.yaml up -d --build
+docker compose -f compose.site.cloud.yaml ps
 ```
 
 **Site : http://localhost:18090** — **Espace client : http://localhost:58080/login**.
@@ -59,7 +63,7 @@ Copier `.env.example` en `.env`, adapter puis recréer le conteneur :
 
 ```powershell
 Copy-Item .env.example .env
-docker compose -f compose.site.yaml up -d --force-recreate
+docker compose -f compose.site.cloud.yaml up -d --force-recreate
 ```
 
 | Variable | Rôle |
@@ -81,20 +85,20 @@ Les coordonnées de l’entreprise et la rédaction juridique finale doivent êt
 
 `POST /api/requests` enregistre un fichier JSON privé par demande dans le volume Docker, avec référence UUID, date, accord et statut **pending**.
 
-**Aucun compte Dorify n’est créé automatiquement. Aucun email ni alerte interne n’est envoyé.**
+**Aucun compte Dorify n’est créé automatiquement. Les emails de confirmation et de notification commerciale sont envoyés uniquement si le fournisseur email est configuré (voir MAIL.md).**
 L’équipe doit consulter les demandes, qualifier le besoin et créer les accès dans l’application concernée. La confirmation affichée ne vaut pas approbation.
 
 Consulter/exporter, depuis le poste administrateur :
 
 ```powershell
-docker compose -f compose.site.yaml exec -T site node tools/export-requests.js
-docker compose -f compose.site.yaml exec -T site node tools/export-requests.js --csv
+docker compose -f compose.site.cloud.yaml exec -T site node tools/export-requests.js
+docker compose -f compose.site.cloud.yaml exec -T site node tools/export-requests.js --csv
 ```
 
 Pas de liste publique de demandes. L’outil exige l’accès à Docker. L’export CSV protège les champs interprétables comme formules. Les exports/sauvegardes restent sous la responsabilité de l’exploitant, notamment leur conservation.
 
 Purge au démarrage puis chaque heure, après la durée configurée. Si le conteneur est arrêté, elle reprend à son redémarrage.
-`docker compose -f compose.site.yaml down` conserve le volume. Ne pas utiliser `--volumes` si les demandes doivent être gardées.
+`docker compose -f compose.site.cloud.yaml down` conserve le volume. Ne pas utiliser `--volumes` si les demandes doivent être gardées.
 
 ## Protections
 
@@ -128,9 +132,9 @@ Captures ordinateur/mobile : `artifacts/screenshots/` (ignorées par Git et Dock
 ## Exploitation
 
 ```powershell
-docker compose -f compose.site.yaml logs --tail=100 site
-docker compose -f compose.site.yaml restart site
-docker compose -f compose.site.yaml down
+docker compose -f compose.site.cloud.yaml logs --tail=100 site
+docker compose -f compose.site.cloud.yaml restart site
+docker compose -f compose.site.cloud.yaml down
 ```
 
 Le lien Espace client ouvre le Dorify Cloud. Les clients INTRA utilisent leur propre adresse d’installation.

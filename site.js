@@ -173,7 +173,7 @@ function showcase() {
   return '<div class="showcase" data-showcase><div class="showcase-tabs" role="tablist" aria-label="Aperçus de l’application">' +
     shots.map(([id, t], i) => '<button id="tab-' + id + '" role="tab" aria-selected="' + (!i) + '" aria-controls="panel-' + id + '" tabindex="' + (i ? -1 : 0) + '" data-tab="' + id + '">' + icon(['screen', 'chart', 'ticket'][i]) + t + '</button>').join('') +
     '</div>' +
-    shots.map(([id,, t, p, alt], i) => '<div id="panel-' + id + '" role="tabpanel" aria-labelledby="tab-' + id + '"' + (i ? ' hidden' : '') + '><div class="showcase-caption"><div><h3>' + t + '</h3><p>' + p + '</p></div><span class="capture-label">CAPTURE DE L’APPLICATION</span></div><button class="screenshot-button" data-zoom="/assets/' + id + '.png" data-caption="' + alt + '" aria-label="Agrandir : ' + alt + '"><img src="/assets/' + id + '.png" width="1440" height="1000" loading="lazy" alt="' + alt + '"><span>Voir en grand ' + icon('plus') + '</span></button></div>').join('') +
+    shots.map(([id,, t, p, alt], i) => '<div id="panel-' + id + '" role="tabpanel" aria-labelledby="tab-' + id + '"' + (i ? ' hidden' : '') + '><div class="showcase-caption"><div><h3>' + t + '</h3><p>' + p + '</p></div><span class="capture-label">DÉMONSTRATION · DONNÉES FICTIVES</span></div><button class="screenshot-button" data-zoom="/assets/' + id + '.png" data-caption="' + alt + '" aria-label="Agrandir : ' + alt + '"><img src="/assets/' + id + '.png" width="1440" height="1000" loading="lazy" alt="' + alt + '"><span>Voir en grand ' + icon('plus') + '</span></button></div>').join('') +
     '<p class="screenshot-note">Aperçus réels de l’environnement de démonstration Dorify. Données de consultation.</p></div>';
 }
 
@@ -215,8 +215,8 @@ function chooser() {
 function home() {
   return '<section class="hero container"><div class="hero-copy">' +
     '<div class="hero-eyebrow"><span class="live-dot"></span> MOINS D’ATTENTE. PLUS D’ATTENTION.</div>' +
-    '<h1>Logiciel de gestion des files d’attente, des rendez-vous et de l’accueil visiteurs</h1>' +
-    '<p>Réunissez l’accueil spontané et les rendez-vous dans un cockpit unique. Donnez des repères en temps réel à vos usagers sur borne, écran et mobile, et offrez une organisation sereine à vos agents de guichet.</p>' +
+    '<h1>Un accueil fluide.<br><span>Des visiteurs bien accompagnés.</span></h1>' +
+    '<p>Files d’attente, rendez-vous et guichets : réunissez votre accueil dans Dorify. Vos visiteurs savent où aller et quand passer. Vos équipes gardent la main, même aux heures de pointe.</p>' +
     '<div class="hero-actions">' +
     link('/demo', 'Demander une démonstration', 'button primary') +
     '<a class="button secondary" href="#parcours">' + icon('screen') + 'Découvrir le parcours</a>' +
@@ -242,14 +242,6 @@ function home() {
     '</div>' +
     link('/solution', 'Comprendre le fonctionnement complet de la solution', 'text-link') +
     '</section>' +
-
-    '<section class="section section-soft"><div class="container">' +
-    heading('DES FONCTIONNALITÉS CONÇUES POUR LE TERRAIN', 'Tout ce qu’il faut pour un accueil fluide et moderne.', 'Chaque module a été éprouvé pour répondre aux exigences réelles des établissements recevant du public.') +
-    '<div class="support-grid">' +
-    featureData.map(([id, i, t, p,, url]) => '<article>' + icon(i) + '<h3>' + t + '</h3><p>' + p + '</p><a href="' + url + '" class="text-link mt-14">Découvrir ce module ' + icon('arrow') + '</a></article>').join('') +
-    '</div>' +
-    '<div class="mt-35">' + link('/fonctionnalites', 'Explorer l’ensemble des fonctionnalités et prérequis', 'button secondary') + '</div>' +
-    '</div></section>' +
 
     '<section class="container section">' +
     heading('DES SOLUTIONS ADAPTÉES À VOTRE SECTEUR', 'Un accueil public et professionnel sur mesure.', 'Que vous gériez une mairie, un établissement public ou un réseau d’agences, Dorify s’adapte à vos spécificités.') +
@@ -717,7 +709,7 @@ function form(c, mode = 'demo') {
       ['3. Proposition & faisabilité technique', 'Recommandation du mode de déploiement (Cloud ou INTRA sur site) et chiffrage transparent.']
     ].map(([t, p], n) => '<div><span>0' + (n + 1) + '</span><p><b>' + t + '</b><small>' + p + '</small></p></div>').join('') +
     '</div>' +
-    '<p class="request-note">' + icon('shield') + 'Pas de création automatique de compte.<br>Votre demande est examinée par notre équipe afin de vous apporter une réponse personnalisée sous 24h ouvrées.</p>' +
+    '<p class="request-note">' + icon('shield') + 'Pas de création automatique de compte.<br>Votre demande est examinée par notre équipe afin de vous apporter une réponse personnalisée après étude de votre demande.</p>' +
     (c.contactEmail ? '<p class="direct-email-note">Vous préférez écrire directement ? <a class="text-link" href="mailto:' + e(c.contactEmail) + '">' + e(c.contactEmail) + '</a></p>' : '') +
     '</div>' +
 
@@ -759,6 +751,7 @@ function form(c, mode = 'demo') {
     '<label class="form-field" for="message"><span>Précisions sur votre besoin <small>(facultatif)</small></span><textarea id="message" name="message" rows="4" maxlength="3000" placeholder="Décrivez votre organisation actuelle, vos équipements ou vos délais de mise en œuvre…" aria-describedby="error-message"></textarea><small class="field-error" id="error-message"></small></label>' +
     '<div class="form-honeypot" aria-hidden="true"><label for="website">Ne pas remplir ce champ</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>' +
     '<label class="consent"><input name="consent" type="checkbox" required aria-describedby="error-consent"><span>J’accepte que les informations saisies soient traitées par Dorify pour répondre à ma demande de démonstration ou de contact. <a href="/confidentialite" target="_blank" rel="noopener">Consulter notre politique de confidentialité</a>.</span></label><small class="field-error" id="error-consent"></small>' +
+    '<fieldset class="captcha"><legend>Vérification humaine</legend><p>Recopiez les six caractères de l’image (sans tenir compte des majuscules).</p><img data-captcha-image width="220" height="66" alt="Code de vérification à recopier"><button type="button" class="button secondary small" data-captcha-refresh>Changer de code</button><input type="hidden" name="captchaId"><label class="form-field" for="captchaAnswer"><span>Code de vérification *</span><input id="captchaAnswer" name="captchaAnswer" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="error-captchaAnswer"><small class="field-error" id="error-captchaAnswer"></small></label><small>Si vous ne pouvez pas lire le code, utilisez le contact email indiqué sur cette page.</small></fieldset>' +
     '<div class="form-actions"><button type="button" class="button back-button">Retour</button><button class="button primary" type="submit"><span data-submit-label>Envoyer ma demande</span>' + icon('arrow') + '</button></div>' +
     '</div>' +
 
@@ -769,12 +762,12 @@ function form(c, mode = 'demo') {
 
     '<div id="request-success" class="request-success" hidden tabindex="-1"><span>' + icon('check') + '</span>' + eye('MERCI POUR VOTRE DEMANDE') +
     '<h2>Votre demande est<br>parfaitement enregistrée.</h2>' +
-    '<p>Notre équipe examine votre projet et vous recontactera sous 24h ouvrées pour convenir d’un créneau de démonstration ou vous transmettre les éléments demandés.</p>' +
+    '<p>Notre équipe examine votre projet et vous recontactera pour convenir d’un créneau de démonstration ou vous transmettre les éléments demandés.</p>' +
     '<div class="request-reference">' +
     '<p class="req-ref-line">Référence de votre demande : <b id="request-reference" class="req-ref-val"></b></p>' +
     '<p class="req-uuid-val">Identifiant technique (UUID) : <code id="request-id"></code></p>' +
     '</div>' +
-    '<p>Un email de confirmation reprenant cette référence vous a été transmis. Conservez-la pour nos échanges.</p>' +
+    '<p>Conservez cette référence pour nos échanges. Si les notifications email sont actives, vous recevrez également une confirmation.</p>' +
     link('/fonctionnalites', 'Continuer à découvrir Dorify', 'button secondary') +
     '</div></div></section>';
 }

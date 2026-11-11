@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { createCaptcha } from './captcha.js';
 import { emailConfiguration } from './mail/provider.js';
 import { createRequestNotifier } from './mail/outbox.js';
 import { formatFunctionalId } from './mail/templates.js';
@@ -52,7 +53,7 @@ export function validateRequest(body) {
   return { value, errors };
 }
 
-export async function createServer(config = configuration(), mailOptions) {
+export async function createServer(config = configuration(), mailOptions, captcha = createCaptcha()) {
   await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   // One immutable file per accepted request: safe across processes; no list endpoint exposes it.
   async function purgeExpired() {
@@ -79,6 +80,15 @@ export async function createServer(config = configuration(), mailOptions) {
     try {
       const url = new URL(req.url, config.publicUrl);
       if (url.pathname === '/healthz' && ['GET', 'HEAD'].includes(req.method)) { await stat(config.dataDir); return send(200, { status: 'ok' }); }
+      if (url.pathname === '/api/captcha' && req.method === 'GET') {
+        const now = Date.now(), key = 'captcha:' + (req.socket.remoteAddress || 'unknown');
+        for (const [ip, entry] of attempts) if (entry.reset <= now) attempts.delete(ip);
+        const limit = attempts.get(key) || { count: 0, reset: now + 15 * 60000 };
+        if (limit.count >= 60 || (attempts.size >= 10000 && !attempts.has(key))) { res.setHeader('Retry-After', '900'); return send(429, { message: 'Trop de vérifications. Réessayez dans quelques minutes.' }); }
+        limit.count++; attempts.set(key, limit);
+        const challenge = captcha.issue();
+        return challenge ? send(200, challenge) : send(429, { message: 'Patientez avant de renouveler la vérification.' });
+      }
       if (url.pathname === '/internal/requests' || url.pathname.startsWith('/internal/requests/')) {
         const supplied = Buffer.from(String(req.headers['x-dorify-service-token'] || ''));
         const expected = Buffer.from(config.requestsSecret || '');
@@ -118,6 +128,7 @@ export async function createServer(config = configuration(), mailOptions) {
         if (body?.website) return send(422, { message: 'Le formulaire ne peut pas être envoyé.' });
         const { value, errors } = validateRequest(body);
         if (Object.keys(errors).length) return send(422, { message: 'Vérifiez les champs indiqués.', errors });
+        if (!captcha.verify(body.captchaId, body.captchaAnswer)) return send(422, { message: 'Recopiez le nouveau code de vérification.', errors: { captchaAnswer: 'Code incorrect ou expiré. Réessayez avec le nouveau code.' } });
         const id = randomUUID(); const createdAt = new Date(now).toISOString();
         const reference = formatFunctionalId(value.topic, now);
         await appendFile(join(config.dataDir, `${now}-${id}.json`), JSON.stringify({ id, reference, createdAt, status: 'pending', privacyVersion: '2026-11-04', ...(notifier.enabled ? { emailNotificationVersion: 1 } : {}), ...value }) + '\n', { flag: 'wx', mode: 0o600 });

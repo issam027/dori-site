@@ -37,11 +37,20 @@ if(form){
  if(['cloud','intra'].includes(query.get('hebergement')))form.elements.hosting.value=query.get('hebergement');
  const feedback=form.querySelector('.form-feedback'),submit=form.querySelector('[type=submit]'),submitLabel=form.querySelector('[data-submit-label]');
  let pending=false;
+ async function refreshCaptcha(){
+  const refresh=form.querySelector('[data-captcha-refresh]');refresh.disabled=true;
+  form.elements.captchaId.value='';form.elements.captchaAnswer.value='';
+  try{const response=await fetch('/api/captcha',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();const challenge=await response.json();form.elements.captchaId.value=challenge.id;form.querySelector('[data-captcha-image]').src=challenge.image;}
+  catch{feedback.textContent='La vérification est indisponible. Cliquez sur « Changer de code » pour réessayer.';}
+  finally{refresh.disabled=false;}
+ }
+ form.querySelector('[data-captcha-refresh]').addEventListener('click',()=>void refreshCaptcha());
+ void refreshCaptcha();
  function step(n){form.querySelectorAll('[data-form-step]').forEach(s=>s.hidden=s.dataset.formStep!==String(n));form.querySelectorAll('[data-step-indicator]').forEach(s=>s.classList.toggle('active',s.dataset.stepIndicator===String(n)));const h=form.querySelector('[data-form-step="'+n+'"] h2');h.tabIndex=-1;h.focus({preventScroll:true});if(matchMedia('(max-width:720px)').matches)form.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});}
  function error(name,text){const output=document.getElementById('error-'+name);if(output)output.textContent=text;const control=form.elements.namedItem(name);if(control instanceof HTMLElement)control.setAttribute('aria-invalid',String(Boolean(text)));}
  form.querySelector('.form-next').addEventListener('click',()=>step(2));
  form.querySelector('.back-button').addEventListener('click',()=>{if(!pending)step(1)});
- for(const name of ['name','organization','email','phone','message','consent'])form.elements[name].addEventListener('input',()=>error(name,''));
+ for(const name of ['name','organization','email','phone','message','consent','captchaAnswer'])form.elements[name].addEventListener('input',()=>error(name,''));
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(pending)return;feedback.textContent='';
   const data=Object.fromEntries(new FormData(form).entries());data.consent=form.elements.consent.checked;
@@ -54,11 +63,12 @@ if(form){
    error(name,text);if(text&&!invalid)invalid=control;
   }
   if(invalid){invalid.focus();return;}
+  if(!data.captchaId||!data.captchaAnswer.trim()){error('captchaAnswer','Recopiez le code de vérification.');form.elements.captchaAnswer.focus();return;}
   pending=true;submit.disabled=true;form.querySelector('.back-button').disabled=true;submitLabel.textContent='Envoi en cours…';form.setAttribute('aria-busy','true');
   try{
    const response=await fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(15000)});
    const result=await response.json();
-   if(!response.ok){if(result.errors){for(const [name,text]of Object.entries(result.errors))error(name,text);const first=Object.keys(result.errors)[0];if(['topic','hosting','sites','queues','peoplePerDay'].includes(first))step(1);else if(form.elements[first]?.focus)form.elements[first].focus();}throw Error(result.message||'L’envoi a échoué. Réessayez.');}
+   if(!response.ok){if(result.errors?.captchaAnswer)await refreshCaptcha();if(result.errors){for(const [name,text]of Object.entries(result.errors))error(name,text);const first=Object.keys(result.errors)[0];if(['topic','hosting','sites','queues','peoplePerDay'].includes(first))step(1);else if(form.elements[first]?.focus)form.elements[first].focus();}throw Error(result.message||'L’envoi a échoué. Réessayez.');}
    const ref=result.reference||result.id;const refEl=document.querySelector('#request-reference');if(refEl)refEl.textContent=ref;const idEl=document.querySelector('#request-id');if(idEl)idEl.textContent=result.id;form.hidden=true;const success=document.querySelector('#request-success');success.hidden=false;success.focus();form.reset();
   }catch(error){feedback.textContent=error.name==='TimeoutError'?'La réponse tarde à arriver. Votre demande a peut-être été reçue ; attendez un moment avant de réessayer.':error instanceof TypeError?'La connexion n’a pas abouti. Vérifiez votre réseau et réessayez.':error.message;feedback.focus();}
   finally{pending=false;submit.disabled=false;form.querySelector('.back-button').disabled=false;submitLabel.textContent='Envoyer ma demande';form.removeAttribute('aria-busy');}

@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import assert from 'node:assert/strict';
 import {createServer,configuration} from '../server.js';
+import {createCaptcha} from '../captcha.js';
 const require=createRequire(import.meta.url);
 const {chromium}=require(require.resolve(process.env.PLAYWRIGHT_MODULE||'playwright',{paths:[process.cwd(),resolve('../dori-web')]}));
 const out=resolve('artifacts/screenshots');await mkdir(out,{recursive:true});
@@ -37,13 +38,14 @@ try{
   await c.close();
  }
  dir=await mkdtemp(join(tmpdir(),'dorify-browser-'));const config=configuration({DATA_DIR:dir,PUBLIC_URL:'http://localhost:18090'});
- fixture=await createServer(config);await new Promise(r=>fixture.listen(0,'127.0.0.1',r));config.publicUrl='http://127.0.0.1:'+fixture.address().port;
+ fixture=await createServer(config,undefined,createCaptcha({answer:()=> 'ABC234'}));await new Promise(r=>fixture.listen(0,'127.0.0.1',r));config.publicUrl='http://127.0.0.1:'+fixture.address().port;
  const p=await browser.newPage({viewport:{width:1440,height:1050}});
  p.on('pageerror',e=>errors.push(e.message));
  await p.goto(config.publicUrl+'/demande-compte?objectif=demo&hebergement=intra');
  assert.equal(await p.locator('[name=topic]:checked').inputValue(),'demo');assert.equal(await p.locator('#hosting').inputValue(),'intra');
  await p.getByRole('button',{name:'Continuer',exact:true}).click();await p.getByRole('button',{name:'Envoyer ma demande'}).click();assert.equal(await p.locator('#error-name').innerText(),'Ce champ est obligatoire.');
  await p.locator('#name').fill('Camille Démonstration');await p.locator('#organization').fill('Organisation Test');await p.locator('#email').fill('camille@example.test');await p.locator('[name=consent]').check();
+ await p.locator('#captchaAnswer').fill('ABC234');
  await p.screenshot({path:join(out,'desktop-formulaire-etape-2.png'),fullPage:true});
  await p.getByRole('button',{name:'Envoyer ma demande'}).click();await p.locator('#request-success').waitFor({state:'visible'});
  const files=await readdir(dir);assert.equal(files.length,1);const data=JSON.parse(await readFile(join(dir,files[0]),'utf8'));assert.equal(data.topic,'demo');assert.equal(data.hosting,'intra');assert.equal(data.status,'pending');

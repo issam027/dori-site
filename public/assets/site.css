@@ -68,3 +68,9 @@
  .button{white-space:normal;max-width:100%;text-align:center}
 }
 
+.captcha { border: 1px solid var(--line, #d4e5e5); border-radius: 12px; padding: 20px; margin: 24px 0; }
+.captcha legend { font-weight: 700; padding: 0 8px; }
+.captcha img { display: block; margin: 12px 0; }
+.captcha .form-field { margin-top: 16px; }
+.captcha input[name=captchaAnswer] { max-width: 220px; letter-spacing: .2em; text-transform: uppercase; }
+.hero h1 span { white-space: normal; }

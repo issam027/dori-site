@@ -122,6 +122,39 @@
           }
         }
       }
+    },
+    "/api/captcha": {
+      "get": {
+        "summary": "?mettre un CAPTCHA visuel ? usage unique, valable cinq minutes",
+        "responses": {
+          "200": {
+            "description": "Identifiant opaque et image data URI. La r?ponse reste sur le serveur.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "image"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "image": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Capacit? temporairement atteinte"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -135,7 +168,9 @@
           "topic",
           "hosting",
           "sites",
-          "consent"
+          "consent",
+          "captchaId",
+          "captchaAnswer"
         ],
         "properties": {
           "name": {
@@ -197,6 +232,15 @@
             "type": "string",
             "maxLength": 0,
             "description": "Honeypot, doit rester vide"
+          },
+          "captchaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "captchaAnswer": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6
           }
         }
       }

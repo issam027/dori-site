@@ -1,3 +1,4 @@
+import {createCaptcha} from '../captcha.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -42,8 +43,8 @@ test('provider 403 is terminal, historical records are not emailed and ambiguous
 });
 test('a persisted form returns 201 when the mail service is unavailable',async t=>{
  const dir=await fixture(t);const config=configuration({DATA_DIR:dir,EMAIL_PROVIDER:'resend',RESEND_API_KEY:'test-only',PUBLIC_URL:'http://localhost:18090'});
- const server=await createServer(config,{provider:{async send(){throw Object.assign(Error('private'),{code:'transport_error',retryable:true})}},spacingMs:0});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+ const captcha=createCaptcha({answer:()=> 'ABC234'});const server=await createServer(config,{provider:{async send(){throw Object.assign(Error('private'),{code:'transport_error',retryable:true})}},spacingMs:0},captcha);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
  config.publicUrl='http://127.0.0.1:'+server.address().port;
- const response=await fetch(config.publicUrl+'/api/requests',{method:'POST',headers:{Origin:config.publicUrl,'Content-Type':'application/json'},body:JSON.stringify({...record,queues:'6',peoplePerDay:'200'})});assert.equal(response.status,201);const {id}=await response.json();assert.ok((await readdir(dir)).some(name=>name.endsWith('-'+id+'.json')));
+ const response=await fetch(config.publicUrl+'/api/requests',{method:'POST',headers:{Origin:config.publicUrl,'Content-Type':'application/json'},body:JSON.stringify({...record,queues:'6',peoplePerDay:'200',captchaId:captcha.issue().id,captchaAnswer:'ABC234'})});assert.equal(response.status,201);const {id}=await response.json();assert.ok((await readdir(dir)).some(name=>name.endsWith('-'+id+'.json')));
 });
 test('configuration defaults to disabled and never silently enables a provider without credentials',()=>{assert.equal(emailConfiguration({}).provider,'disabled');assert.throws(()=>emailConfiguration({EMAIL_PROVIDER:'resend'}),/RESEND_API_KEY/);assert.throws(()=>emailConfiguration({EMAIL_PROVIDER:'unknown'}),/Unsupported/)});

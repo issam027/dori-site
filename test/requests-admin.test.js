@@ -1,3 +1,4 @@
+import {createCaptcha} from '../captcha.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
@@ -8,10 +9,10 @@ const secret='test-service-secret-at-least-32-characters';
 test('quantities persist, internal list/detail require a service secret, search and legacy records work', async t=>{
  const dataDir=await mkdtemp(join(tmpdir(),'dorify-admin-'));
  const config=configuration({DATA_DIR:dataDir,SITE_REQUESTS_SECRET:secret});
- const server=await createServer(config);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const captcha=createCaptcha({answer:()=> 'ABC234'});const server=await createServer(config,undefined,captcha);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base='http://127.0.0.1:'+server.address().port;config.publicUrl=base;
  t.after(async()=>{await new Promise(resolve=>server.close(resolve));await rm(dataDir,{recursive:true,force:true})});
- const post=body=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const post=body=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({...body,captchaId:captcha.issue().id,captchaAnswer:'ABC234'})});
  const valid={name:'Camille',organization:'Agence test',email:'test@example.test',topic:'account',hosting:'cloud',sites:'2-5',consent:true,queues:'6',peoplePerDay:'200',message:'<script>test</script>'};
  const accepted=await post(valid);assert.equal(accepted.status,201);const {id}=await accepted.json();
  const stored=JSON.parse(await readFile(join(dataDir,(await readdir(dataDir))[0]),'utf8'));assert.equal(stored.queues,6);assert.equal(stored.peoplePerDay,200);

@@ -5,15 +5,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createServer, configuration } from '../server.js';
+import { createCaptcha } from '../captcha.js';
 
 const valid={name:'Camille Test',organization:'Organisation de démonstration',email:'camille@example.test',phone:'',topic:'account',hosting:'cloud',sites:'2-5',message:'Test de demande',consent:true};
 async function fixture(t,env={}){
  const dataDir=await mkdtemp(join(tmpdir(),'dorify-site-test-'));
  const c=configuration({...env,DATA_DIR:dataDir,PUBLIC_URL:'http://localhost:18090'});
- const server=await createServer(c);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const captcha=createCaptcha({answer:()=> 'ABC234'});
+ const server=await createServer(c,undefined,captcha);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base='http://127.0.0.1:'+server.address().port;c.publicUrl=base;
  t.after(async()=>{await new Promise(resolve=>server.close(resolve));await rm(dataDir,{recursive:true,force:true})});
- const post=(data=valid,options={})=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json',...options.headers},body:typeof data==='string'?data:JSON.stringify(data)});
+ const post=(data=valid,options={})=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json',...options.headers},body:typeof data==='string'?data:JSON.stringify(data && {...data,captchaId:captcha.issue().id,captchaAnswer:'ABC234'})});
  return {base,c,post,dataDir};
 }
 test('all public pages render as HTML with navigation and security headers',async t=>{
@@ -36,6 +38,20 @@ test('accepted request is durably persisted with a reference and limited fields'
  assert.match(body.reference,/^(?:DEMO|CPT|CTC)-\d{10}$/);
  const files=await readdir(dataDir);assert.equal(files.length,1);const saved=JSON.parse(await readFile(join(dataDir,files[0]),'utf8'));
  assert.equal(saved.id,body.id);assert.equal(saved.reference,body.reference);assert.equal(saved.name,'Camille Test');assert.equal(saved.status,'pending');assert.equal(saved.unknown,undefined);assert.equal(saved.consent,true);
+});
+
+test('missing, wrong and reused captcha never persist a request', async t => {
+ const {base,dataDir}=await fixture(t);
+ const submit=body=>fetch(base+'/api/requests',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({...valid,...body})});
+ assert.equal((await submit({})).status,422);
+ const challenge=await (await fetch(base+'/api/captcha')).json();
+ assert.equal((await submit({captchaId:challenge.id,captchaAnswer:'WRONG1'})).status,422);
+ assert.equal((await submit({captchaId:challenge.id,captchaAnswer:'ABC234'})).status,422);
+ assert.equal((await readdir(dataDir)).length,0);
+ const fresh=await (await fetch(base+'/api/captcha')).json();
+ assert.equal((await submit({captchaId:fresh.id,captchaAnswer:'ABC234'})).status,201);
+ assert.equal((await submit({captchaId:fresh.id,captchaAnswer:'ABC234'})).status,422);
+ assert.equal((await readdir(dataDir)).length,1);
 });
 test('invalid requests create no records and return field errors',async t=>{
  const {post,dataDir}=await fixture(t);

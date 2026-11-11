@@ -1,7 +1,7 @@
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production PORT=8080 HOST=0.0.0.0 DATA_DIR=/app/data
 WORKDIR /app
-COPY --chown=node:node package.json server.js site.js ./
+COPY --chown=node:node package.json server.js site.js captcha.js captcha-image.js ./
 COPY --chown=node:node mail ./mail
 COPY --chown=node:node public ./public
 COPY --chown=node:node tools/export-requests.js ./tools/export-requests.js
